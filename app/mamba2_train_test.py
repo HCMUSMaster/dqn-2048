@@ -133,6 +133,13 @@ def train(args: argparse.Namespace, device: torch.device):
     target_net.load_state_dict(q_net.state_dict())
     target_net.eval()
 
+    total_params = sum(param.numel() for param in q_net.parameters())
+    trainable_params = sum(param.numel() for param in q_net.parameters() if param.requires_grad)
+    print(
+        f"Model params: total={total_params:,}, "
+        f"trainable={trainable_params:,}, non_trainable={total_params - trainable_params:,}"
+    )
+
     optimizer = optim.Adam(q_net.parameters(), lr=args.lr)
     replay = SequentialReplayBuffer(args.buffer_size, seq_len=args.seq_len)
 
