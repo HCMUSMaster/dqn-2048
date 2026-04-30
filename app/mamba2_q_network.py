@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 try:
@@ -54,6 +55,12 @@ class Mamba2QNetwork(nn.Module):
         elif x.dim() != 3:
             raise ValueError(f"Expected input shape [B, D] or [B, T, D], got {tuple(x.shape)}")
 
+        single_token_sequence = x.size(1) == 1
+        if single_token_sequence:
+            # Mamba2's CUDA kernel rejects a length-1 sequence on this backend.
+            # Pad a second token so single-step inference still works, then trim the output back.
+            x = torch.cat([x, torch.zeros_like(x)], dim=1)
+
         h = self.input_proj(x)
         for block in self.blocks:
             h = h + block(h)
@@ -62,4 +69,6 @@ class Mamba2QNetwork(nn.Module):
 
         if squeeze_sequence:
             return q[:, 0, :]
+        if single_token_sequence:
+            return q[:, :1, :]
         return q

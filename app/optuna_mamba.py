@@ -92,7 +92,7 @@ def suggest_hparams(trial: optuna.Trial) -> dict:
         "hidden_dim": trial.suggest_categorical("hidden_dim", [128, 256, 384]),
         "mamba_layers": trial.suggest_int("mamba_layers", 1, 4),
         "mamba_state_dim": trial.suggest_categorical("mamba_state_dim", [32, 64, 128]),
-        "mamba_conv_dim": trial.suggest_categorical("mamba_conv_dim", [2, 4, 8]),
+        "mamba_conv_dim": trial.suggest_categorical("mamba_conv_dim", [2, 4]),
         "mamba_expand": trial.suggest_categorical("mamba_expand", [1, 2, 3]),
     }
 

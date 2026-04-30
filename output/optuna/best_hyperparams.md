@@ -102,3 +102,30 @@ Best trial for h_dqn: #6
     eps_decay_steps: 20000
     grad_clip: 7.010189344276133
 ```
+
+```
+Best trial Mamba2 double_dqn: #24
+  Score: 2580.963
+  avg_return: 2693.6
+  std_return: 1126.4
+  avg_length: 233.3
+  avg_max_tile: 212.8
+  avg_illegal_attempts: 73.5
+  best_params:
+    buffer_size: 200000
+    batch_size: 64
+    seq_len: 12
+    gamma: 0.958278580825883
+    lr: 5.1152218086166416e-05
+    target_sync_every: 100
+    learn_start: 5000
+    learn_every: 4
+    eps_end: 0.09461215273949933
+    eps_decay_steps: 5000
+    grad_clip: 5.6534348547385
+    hidden_dim: 256
+    mamba_layers: 2
+    mamba_state_dim: 64
+    mamba_conv_dim: 2
+    mamba_expand: 1
+```
