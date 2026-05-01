@@ -129,3 +129,30 @@ Best trial Mamba2 double_dqn: #24
     mamba_conv_dim: 2
     mamba_expand: 1
 ```
+
+```
+Best trial for mamba dqn: #56
+  Score: 2912.702
+  avg_return: 3052.6
+  std_return: 1399.0
+  avg_length: 255.8
+  avg_max_tile: 243.2
+  avg_illegal_attempts: 79.3
+  best_params:
+    buffer_size: 200000
+    batch_size: 64
+    seq_len: 16
+    gamma: 0.9739846568718238
+    lr: 4.1433825788519225e-05
+    target_sync_every: 500
+    learn_start: 2000
+    learn_every: 8
+    eps_end: 0.08453161403381923
+    eps_decay_steps: 5000
+    grad_clip: 14.823449461719127
+    hidden_dim: 256
+    mamba_layers: 4
+    mamba_state_dim: 64
+    mamba_conv_dim: 4
+    mamba_expand: 2
+```

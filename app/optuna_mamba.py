@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import optuna
 import torch
@@ -13,8 +14,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--algorithm",
         choices=["dqn", "double_dqn"],
-        default="double_dqn",
-        help="Which target update variant to tune.",
+        default=None,
+        help="Which target update variant to tune. If omitted, tune both.",
     )
     parser.add_argument("--n_trials", type=int, default=30, help="Number of Optuna trials.")
     parser.add_argument(
@@ -98,10 +99,13 @@ def suggest_hparams(trial: optuna.Trial) -> dict:
 
 
 def make_trial_args(
-    cli_args: argparse.Namespace, hparams: dict, output_dir: str | None = None
+    cli_args: argparse.Namespace,
+    hparams: dict,
+    algorithm: str,
+    output_dir: str | None = None,
 ) -> argparse.Namespace:
     return argparse.Namespace(
-        algorithm=cli_args.algorithm,
+        algorithm=algorithm,
         seed=cli_args.seed,
         num_episodes=cli_args.num_episodes,
         buffer_size=hparams["buffer_size"],
@@ -131,13 +135,21 @@ def make_trial_args(
     )
 
 
-def tune(cli_args: argparse.Namespace) -> None:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Tuning Mamba2 {cli_args.algorithm} on device={device}")
+def _save_dir_for_algorithm(base_dir: str, algorithm: str) -> str:
+    return os.path.join(base_dir.rstrip("/"), f"mamba2_{algorithm}")
+
+
+def tune_algorithm(
+    cli_args: argparse.Namespace,
+    device: torch.device,
+    algorithm: str,
+    study_name: str | None = None,
+) -> None:
+    print(f"Tuning Mamba2 {algorithm} on device={device}")
 
     def objective(trial: optuna.Trial) -> float:
         hparams = suggest_hparams(trial)
-        trial_args = make_trial_args(cli_args, hparams)
+        trial_args = make_trial_args(cli_args, hparams, algorithm=algorithm)
 
         q_net, _, _, num_actions = mamba2_train_test.train(trial_args, device)
         eval_data = mamba2_train_test.evaluate_policy(trial_args, q_net, num_actions, device)
@@ -157,7 +169,7 @@ def tune(cli_args: argparse.Namespace) -> None:
 
     if cli_args.storage:
         study = optuna.create_study(
-            study_name=cli_args.study_name,
+            study_name=study_name,
             storage=cli_args.storage,
             load_if_exists=True,
             direction="maximize",
@@ -168,7 +180,7 @@ def tune(cli_args: argparse.Namespace) -> None:
     study.optimize(objective, n_trials=cli_args.n_trials, timeout=cli_args.timeout)
 
     best = study.best_trial
-    print(f"\nBest trial: #{best.number}")
+    print(f"\nBest trial for {algorithm}: #{best.number}")
     print(f"  Score: {best.value:.3f}")
     print(f"  avg_return: {best.user_attrs.get('avg_return', float('nan')):.1f}")
     print(f"  std_return: {best.user_attrs.get('std_return', float('nan')):.1f}")
@@ -180,9 +192,9 @@ def tune(cli_args: argparse.Namespace) -> None:
         print(f"    {key}: {value}")
 
     if cli_args.save_best_dir:
-        output_dir = cli_args.save_best_dir.rstrip("/")
+        output_dir = _save_dir_for_algorithm(cli_args.save_best_dir, algorithm)
         best_hparams = {**best.params, "eps_start": 1.0}
-        best_args = make_trial_args(cli_args, best_hparams, output_dir=output_dir)
+        best_args = make_trial_args(cli_args, best_hparams, algorithm=algorithm, output_dir=output_dir)
         best_args.log_episodes = True
         best_args.print_eval_summary = True
         best_args.log_save = True
@@ -197,6 +209,29 @@ def tune(cli_args: argparse.Namespace) -> None:
             obs_dim,
             num_actions,
             eval_data,
+        )
+
+
+def tune(cli_args: argparse.Namespace) -> None:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if cli_args.algorithm:
+        tune_algorithm(
+            cli_args=cli_args,
+            device=device,
+            algorithm=cli_args.algorithm,
+            study_name=cli_args.study_name,
+        )
+        return
+
+    algorithms = ["dqn", "double_dqn"]
+    print(f"No --algorithm provided. Running all: {', '.join(algorithms)}")
+    for algorithm in algorithms:
+        tune_algorithm(
+            cli_args=cli_args,
+            device=device,
+            algorithm=algorithm,
+            study_name=f"{cli_args.study_name}_{algorithm}",
         )
 
 
