@@ -9,13 +9,14 @@ from app import mamba2_train_test
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Tune Mamba2 DQN/Double-DQN hyperparameters with Optuna."
+        description="Tune Mamba2 DQN-family hyperparameters with Optuna."
     )
     parser.add_argument(
         "--algorithm",
-        choices=["dqn", "double_dqn"],
+        choices=["dqn", "double_dqn", "dueling_double_dqn", "qr_dqn", "h_dqn"],
+        type=str,
         default=None,
-        help="Which target update variant to tune. If omitted, tune both.",
+        help="Which algorithm(s) to tune. Provide a comma-separated list (e.g. 'dqn,qr_dqn') or a single name. If omitted, tune all supported Mamba2 algorithms.",
     )
     parser.add_argument("--n_trials", type=int, default=30, help="Number of Optuna trials.")
     parser.add_argument(
@@ -73,11 +74,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.1,
         help="Objective: score = avg_return - metric_penalty * std_return.",
     )
+    parser.add_argument(
+        "--goal_tiles",
+        type=str,
+        default="32,64,128,256,512,1024,2048",
+        help="Comma-separated intrinsic goal tiles for H-DQN.",
+    )
+    parser.add_argument(
+        "--option_duration",
+        type=int,
+        default=8,
+        help="Maximum primitive steps before forcing a new H-DQN meta-goal.",
+    )
     return parser
 
 
-def suggest_hparams(trial: optuna.Trial) -> dict:
-    return {
+def suggest_hparams(trial: optuna.Trial, algorithm: str) -> dict:
+    hparams = {
         "buffer_size": trial.suggest_categorical("buffer_size", [20_000, 50_000, 100_000, 200_000]),
         "batch_size": trial.suggest_categorical("batch_size", [64, 128, 256]),
         "seq_len": trial.suggest_categorical("seq_len", [4, 8, 12, 16]),
@@ -97,6 +110,22 @@ def suggest_hparams(trial: optuna.Trial) -> dict:
         "mamba_expand": trial.suggest_categorical("mamba_expand", [1, 2, 3]),
     }
 
+    if algorithm == "qr_dqn":
+        hparams["num_quantiles"] = trial.suggest_categorical("num_quantiles", [31, 51, 101])
+        hparams["kappa"] = trial.suggest_categorical("kappa", [0.5, 1.0, 2.0])
+
+    if algorithm == "h_dqn":
+        hparams["intrinsic_success_reward"] = trial.suggest_categorical(
+            "intrinsic_success_reward",
+            [0.5, 1.0, 2.0],
+        )
+        hparams["intrinsic_step_penalty"] = trial.suggest_categorical(
+            "intrinsic_step_penalty",
+            [-0.05, -0.01, -0.005],
+        )
+
+    return hparams
+
 
 def make_trial_args(
     cli_args: argparse.Namespace,
@@ -104,7 +133,7 @@ def make_trial_args(
     algorithm: str,
     output_dir: str | None = None,
 ) -> argparse.Namespace:
-    return argparse.Namespace(
+    trial_args = argparse.Namespace(
         algorithm=algorithm,
         seed=cli_args.seed,
         num_episodes=cli_args.num_episodes,
@@ -126,13 +155,27 @@ def make_trial_args(
         mamba_state_dim=hparams["mamba_state_dim"],
         mamba_conv_dim=hparams["mamba_conv_dim"],
         mamba_expand=hparams["mamba_expand"],
+        num_quantiles=hparams["num_quantiles"],
+        kappa=hparams["kappa"],
         num_eval_seeds=cli_args.num_eval_seeds,
         eval_every=cli_args.eval_every,
         output_dir=output_dir,
         log_episodes=False,
         print_eval_summary=False,
         log_save=False,
+        goal_tiles=cli_args.goal_tiles,
+        option_duration=cli_args.option_duration,
     )
+
+    if algorithm == "h_dqn":
+        trial_args.intrinsic_success_reward = hparams["intrinsic_success_reward"]
+        trial_args.intrinsic_step_penalty = hparams["intrinsic_step_penalty"]
+
+    if algorithm == "qr_dqn":
+        trial_args.num_quantiles = hparams["num_quantiles"]
+        trial_args.kappa = hparams["kappa"]
+
+    return trial_args
 
 
 def _save_dir_for_algorithm(base_dir: str, algorithm: str) -> str:
@@ -148,7 +191,7 @@ def tune_algorithm(
     print(f"Tuning Mamba2 {algorithm} on device={device}")
 
     def objective(trial: optuna.Trial) -> float:
-        hparams = suggest_hparams(trial)
+        hparams = suggest_hparams(trial, algorithm)
         trial_args = make_trial_args(cli_args, hparams, algorithm=algorithm)
 
         q_net, _, _, num_actions = mamba2_train_test.train(trial_args, device)
@@ -216,15 +259,18 @@ def tune(cli_args: argparse.Namespace) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if cli_args.algorithm:
-        tune_algorithm(
-            cli_args=cli_args,
-            device=device,
-            algorithm=cli_args.algorithm,
-            study_name=cli_args.study_name,
-        )
+        # Accept comma-separated list in a single string, or single name
+        parts = [p.strip() for p in cli_args.algorithm.split(",") if p.strip()]
+        for algorithm in parts:
+            tune_algorithm(
+                cli_args=cli_args,
+                device=device,
+                algorithm=algorithm,
+                study_name=f"{cli_args.study_name}_{algorithm}",
+            )
         return
 
-    algorithms = ["dqn", "double_dqn"]
+    algorithms = ["dqn", "double_dqn", "dueling_double_dqn", "qr_dqn", "h_dqn"]
     print(f"No --algorithm provided. Running all: {', '.join(algorithms)}")
     for algorithm in algorithms:
         tune_algorithm(

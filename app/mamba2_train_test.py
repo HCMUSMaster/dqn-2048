@@ -3,6 +3,7 @@ import os
 import random
 
 import numpy as np
+from typing import Any, cast
 import torch
 import torch.optim as optim
 from tqdm.auto import tqdm
@@ -10,6 +11,8 @@ from tqdm.auto import tqdm
 from app.eval import evaluate_multi_seed, greedy_rollout, save_eval_results
 from app.helpers import epsilon_by_step, masked_greedy_action
 from app.mamba2_q_network import Mamba2QNetwork
+from app.mamba2_dueling_q_network import Mamba2DuelingQNetwork
+from app.mamba2_quantile_q_network import Mamba2QuantileQNetwork
 from app.open_spiel_2048_env import OpenSpiel2048Env
 from app.replay_buffer import make_legal_mask
 from app.sequential_replay_buffer import SequentialReplayBuffer
@@ -19,7 +22,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Train and evaluate Mamba2-based DQN/Double-DQN on OpenSpiel 2048"
     )
-    parser.add_argument("--algorithm", choices=["dqn", "double_dqn"], default="double_dqn")
+    parser.add_argument(
+        "--algorithm",
+        choices=["dqn", "double_dqn", "dueling_double_dqn", "h_dqn", "qr_dqn"],
+        default="double_dqn",
+    )
     parser.add_argument("--seed", type=int, default=7, help="Random seed for Python, NumPy, and PyTorch.")
     parser.add_argument("--num_episodes", type=int, default=300, help="Number of training episodes.")
     parser.add_argument("--buffer_size", type=int, default=50_000, help="Replay buffer capacity.")
@@ -40,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mamba_state_dim", type=int, default=64, help="Mamba2 d_state.")
     parser.add_argument("--mamba_conv_dim", type=int, default=4, help="Mamba2 d_conv.")
     parser.add_argument("--mamba_expand", type=int, default=2, help="Mamba2 expand ratio.")
+    parser.add_argument("--num_quantiles", type=int, default=51, help="Number of quantiles for QR-DQN.")
+    parser.add_argument("--kappa", type=float, default=1.0, help="Huber threshold for QR loss.")
     parser.add_argument("--num_eval_seeds", type=int, default=100, help="Evaluation seed count.")
     parser.add_argument("--eval_every", type=int, default=20, help="Run eval every N episodes.")
     parser.add_argument(
@@ -74,6 +83,87 @@ def dqn_sequence_update(batch, q_net, target_net, optimizer, gamma: float, grad_
     torch.nn.utils.clip_grad_norm_(q_net.parameters(), grad_clip)
     optimizer.step()
     return float(loss.item())
+
+
+def quantile_huber_loss(pred_quantiles: torch.Tensor, target_quantiles: torch.Tensor, taus: torch.Tensor, kappa: float) -> torch.Tensor:
+    td_error = target_quantiles.unsqueeze(2) - pred_quantiles.unsqueeze(3)
+    abs_error = torch.abs(td_error)
+    huber = torch.where(abs_error <= kappa, 0.5 * td_error.pow(2), kappa * (abs_error - 0.5 * kappa))
+    quantile_weight = torch.abs(taus.view(1, 1, -1, 1) - (td_error.detach() < 0).float())
+    return (quantile_weight * huber).mean()
+
+
+def qr_sequence_update(batch, q_net, target_net, optimizer, gamma: float, grad_clip: float, kappa: float, device):
+    obs = torch.tensor(np.asarray(batch.obs), dtype=torch.float32, device=device)
+    actions = torch.tensor(np.asarray(batch.action), dtype=torch.int64, device=device)
+    rewards = torch.tensor(np.asarray(batch.reward), dtype=torch.float32, device=device)
+    next_obs = torch.tensor(np.asarray(batch.next_obs), dtype=torch.float32, device=device)
+    dones = torch.tensor(np.asarray(batch.done), dtype=torch.float32, device=device)
+    next_legal_mask = torch.tensor(np.asarray(batch.next_legal_mask), dtype=torch.bool, device=device)
+
+    B, T = actions.shape
+    num_quantiles = q_net.num_quantiles
+
+    all_quantiles = q_net(obs)  # [B, T, A, N]
+    action_idx = actions.view(B, T, 1, 1).expand(B, T, 1, num_quantiles)
+    pred_quantiles = all_quantiles.gather(2, action_idx).squeeze(2)  # [B, T, N]
+
+    with torch.no_grad():
+        next_online_q = q_net.q_values(next_obs).masked_fill(~next_legal_mask, -1e9)  # [B, T, A]
+        next_actions = torch.argmax(next_online_q, dim=2)  # [B, T]
+
+        next_action_idx = next_actions.view(B, T, 1, 1).expand(B, T, 1, num_quantiles)
+        next_quantiles = target_net(next_obs).gather(2, next_action_idx).squeeze(2)  # [B, T, N]
+        next_quantiles = torch.where(dones.unsqueeze(2) > 0.5, torch.zeros_like(next_quantiles), next_quantiles)
+
+        target_quantiles = rewards.unsqueeze(2) + gamma * next_quantiles  # [B, T, N]
+
+    # flatten time dimension into batch for loss computation
+    pred_flat = pred_quantiles.view(-1, num_quantiles)
+    target_flat = target_quantiles.view(-1, num_quantiles)
+
+    taus = (torch.arange(num_quantiles, dtype=torch.float32, device=device) + 0.5) / float(num_quantiles)
+    loss = quantile_huber_loss(pred_flat, target_flat, taus, kappa=kappa)
+
+    optimizer.zero_grad()
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(q_net.parameters(), grad_clip)
+    optimizer.step()
+
+    return float(loss.item())
+
+
+class ExpectedQPolicy(torch.nn.Module):
+    def __init__(self, quantile_net: torch.nn.Module):
+        super().__init__()
+        self.quantile_net = quantile_net
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Forward compatible adapter: if underlying network has `q_values` use it,
+        # otherwise call the module directly.
+        q_values_fn: Any = getattr(self.quantile_net, "q_values", None)
+        if callable(q_values_fn):
+            return cast(torch.Tensor, q_values_fn(x))
+        return cast(torch.Tensor, self.quantile_net.forward(x))
+
+
+@torch.no_grad()
+def masked_greedy_quantile_action(q_net: torch.nn.Module, obs, legal_actions_list, num_actions: int, epsilon: float, device: torch.device) -> int:
+    if random.random() < epsilon:
+        return random.choice(legal_actions_list)
+
+    obs_t = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
+    # Use q_values if available, otherwise call the network to get q-values.
+    q_values_fn: Any = getattr(q_net, "q_values", None)
+    if callable(q_values_fn):
+        q = cast(torch.Tensor, q_values_fn(obs_t)).squeeze(0)
+    else:
+        q = cast(torch.Tensor, q_net.forward(obs_t)).squeeze(0)
+
+    legal_mask = torch.zeros(num_actions, dtype=torch.bool, device=device)
+    legal_mask[legal_actions_list] = True
+    q_masked = q.masked_fill(~legal_mask, -1e9)
+    return int(torch.argmax(q_masked).item())
 
 
 def double_dqn_sequence_update(batch, q_net, target_net, optimizer, gamma: float, grad_clip: float, device):
@@ -111,25 +201,66 @@ def train(args: argparse.Namespace, device: torch.device):
     train_env = OpenSpiel2048Env(seed=args.seed)
     obs_dim = train_env.obs_dim
     num_actions = train_env.num_actions
-
-    q_net = Mamba2QNetwork(
-        obs_dim=obs_dim,
-        num_actions=num_actions,
-        hidden_dim=args.hidden_dim,
-        num_layers=args.mamba_layers,
-        d_state=args.mamba_state_dim,
-        d_conv=args.mamba_conv_dim,
-        expand=args.mamba_expand,
-    ).to(device)
-    target_net = Mamba2QNetwork(
-        obs_dim=obs_dim,
-        num_actions=num_actions,
-        hidden_dim=args.hidden_dim,
-        num_layers=args.mamba_layers,
-        d_state=args.mamba_state_dim,
-        d_conv=args.mamba_conv_dim,
-        expand=args.mamba_expand,
-    ).to(device)
+    # Instantiate model depending on requested algorithm
+    if args.algorithm == "dueling_double_dqn":
+        q_net = Mamba2DuelingQNetwork(
+            obs_dim=obs_dim,
+            num_actions=num_actions,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.mamba_layers,
+            d_state=args.mamba_state_dim,
+            d_conv=args.mamba_conv_dim,
+            expand=args.mamba_expand,
+        ).to(device)
+        target_net = Mamba2DuelingQNetwork(
+            obs_dim=obs_dim,
+            num_actions=num_actions,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.mamba_layers,
+            d_state=args.mamba_state_dim,
+            d_conv=args.mamba_conv_dim,
+            expand=args.mamba_expand,
+        ).to(device)
+    elif args.algorithm == "qr_dqn":
+        q_net = Mamba2QuantileQNetwork(
+            obs_dim=obs_dim,
+            num_actions=num_actions,
+            num_quantiles=args.num_quantiles,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.mamba_layers,
+            d_state=args.mamba_state_dim,
+            d_conv=args.mamba_conv_dim,
+            expand=args.mamba_expand,
+        ).to(device)
+        target_net = Mamba2QuantileQNetwork(
+            obs_dim=obs_dim,
+            num_actions=num_actions,
+            num_quantiles=args.num_quantiles,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.mamba_layers,
+            d_state=args.mamba_state_dim,
+            d_conv=args.mamba_conv_dim,
+            expand=args.mamba_expand,
+        ).to(device)
+    else:
+        q_net = Mamba2QNetwork(
+            obs_dim=obs_dim,
+            num_actions=num_actions,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.mamba_layers,
+            d_state=args.mamba_state_dim,
+            d_conv=args.mamba_conv_dim,
+            expand=args.mamba_expand,
+        ).to(device)
+        target_net = Mamba2QNetwork(
+            obs_dim=obs_dim,
+            num_actions=num_actions,
+            hidden_dim=args.hidden_dim,
+            num_layers=args.mamba_layers,
+            d_state=args.mamba_state_dim,
+            d_conv=args.mamba_conv_dim,
+            expand=args.mamba_expand,
+        ).to(device)
     target_net.load_state_dict(q_net.state_dict())
     target_net.eval()
 
@@ -142,6 +273,12 @@ def train(args: argparse.Namespace, device: torch.device):
 
     optimizer = optim.Adam(q_net.parameters(), lr=args.lr)
     replay = SequentialReplayBuffer(args.buffer_size, seq_len=args.seq_len)
+
+    # adapter policy for evaluation (QR needs expected q-values)
+    if args.algorithm == "qr_dqn":
+        q_policy = ExpectedQPolicy(q_net)
+    else:
+        q_policy = q_net
 
     global_step = 0
     for episode in tqdm(range(1, args.num_episodes + 1), desc="Training"):
@@ -167,17 +304,27 @@ def train(args: argparse.Namespace, device: torch.device):
                 max_tile = max(max_tile, int(np.max(obs)))
 
             with torch.no_grad():
-                q_vals = q_net(torch.tensor(np.asarray([obs]), dtype=torch.float32, device=device))
+                q_vals = q_policy.forward(torch.tensor(np.asarray([obs]), dtype=torch.float32, device=device))
                 q_vals_np = q_vals.cpu().numpy()[0]
 
-            action = masked_greedy_action(
-                q_net=q_net,
-                obs=obs,
-                legal_actions_list=legal,
-                num_actions=num_actions,
-                epsilon=eps,
-                device=device,
-            )
+            if args.algorithm == "qr_dqn":
+                action = masked_greedy_quantile_action(
+                    q_net=q_net,
+                    obs=obs,
+                    legal_actions_list=legal,
+                    num_actions=num_actions,
+                    epsilon=eps,
+                    device=device,
+                )
+            else:
+                action = masked_greedy_action(
+                    q_net=q_net,
+                    obs=obs,
+                    legal_actions_list=legal,
+                    num_actions=num_actions,
+                    epsilon=eps,
+                    device=device,
+                )
 
             if eps > 0 and len(legal) < num_actions:
                 best_raw_action = int(np.argmax(q_vals_np))
@@ -196,7 +343,18 @@ def train(args: argparse.Namespace, device: torch.device):
 
             if len(replay) >= args.learn_start and global_step % args.learn_every == 0:
                 batch = replay.sample(args.batch_size)
-                if args.algorithm == "double_dqn":
+                if args.algorithm == "qr_dqn":
+                    loss = qr_sequence_update(
+                        batch=batch,
+                        q_net=q_net,
+                        target_net=target_net,
+                        optimizer=optimizer,
+                        gamma=args.gamma,
+                        grad_clip=args.grad_clip,
+                        kappa=args.kappa,
+                        device=device,
+                    )
+                elif args.algorithm == "double_dqn":
                     loss = double_dqn_sequence_update(
                         batch=batch,
                         q_net=q_net,
@@ -224,7 +382,7 @@ def train(args: argparse.Namespace, device: torch.device):
         eval_return = float("nan")
         if episode % args.eval_every == 0:
             eval_return, _, _, _, _ = greedy_rollout(
-                q_net=q_net,
+                q_net=q_policy,
                 env=OpenSpiel2048Env(seed=1000 + episode),
                 num_actions=num_actions,
                 max_steps=args.max_steps_per_episode,
@@ -304,6 +462,7 @@ def save_artifacts(args, q_net, target_net, obs_dim: int, num_actions: int, eval
             "mamba_state_dim": args.mamba_state_dim,
             "mamba_conv_dim": args.mamba_conv_dim,
             "mamba_expand": args.mamba_expand,
+            **({"num_quantiles": args.num_quantiles, "kappa": args.kappa} if args.algorithm == "qr_dqn" else {}),
         },
         checkpoint_path,
     )
@@ -316,8 +475,39 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     print(f"Algorithm: {args.algorithm}")
+
+    if args.algorithm == "h_dqn":
+        # Delegate to the hierarchical implementation but use Mamba2 Q-networks
+        from app import h_dqn
+
+        # Monkeypatch QNetwork used by h_dqn to our Mamba2QNetwork
+        h_dqn.QNetwork = Mamba2QNetwork
+        (
+            controller_net,
+            target_controller_net,
+            meta_net,
+            target_meta_net,
+            q_policy,
+            goals,
+            obs_dim,
+            num_actions,
+        ) = h_dqn.train(args, device)
+        eval_data = h_dqn.evaluate_policy(args, q_policy, num_actions, device)
+        h_dqn.save_artifacts(
+            args,
+            controller_net,
+            target_controller_net,
+            meta_net,
+            target_meta_net,
+            goals,
+            obs_dim,
+            num_actions,
+            eval_data,
+        )
+        return
+
     q_net, target_net, obs_dim, num_actions = train(args, device)
-    eval_data = evaluate_policy(args, q_net, num_actions, device)
+    eval_data = evaluate_policy(args, q_net if args.algorithm != "qr_dqn" else (ExpectedQPolicy(q_net)), num_actions, device)
     save_artifacts(args, q_net, target_net, obs_dim, num_actions, eval_data)
 
 
