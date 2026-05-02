@@ -13,7 +13,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--algorithm",
-        choices=["dqn", "double_dqn", "dueling_double_dqn", "qr_dqn", "h_dqn"],
         type=str,
         default=None,
         help="Which algorithm(s) to tune. Provide a comma-separated list (e.g. 'dqn,qr_dqn') or a single name. If omitted, tune all supported Mamba2 algorithms.",
@@ -127,6 +126,9 @@ def suggest_hparams(trial: optuna.Trial, algorithm: str) -> dict:
     return hparams
 
 
+SUPPORTED_ALGORITHMS = ["dqn", "double_dqn", "dueling_double_dqn", "qr_dqn", "h_dqn"]
+
+
 def make_trial_args(
     cli_args: argparse.Namespace,
     hparams: dict,
@@ -155,8 +157,6 @@ def make_trial_args(
         mamba_state_dim=hparams["mamba_state_dim"],
         mamba_conv_dim=hparams["mamba_conv_dim"],
         mamba_expand=hparams["mamba_expand"],
-        num_quantiles=hparams["num_quantiles"],
-        kappa=hparams["kappa"],
         num_eval_seeds=cli_args.num_eval_seeds,
         eval_every=cli_args.eval_every,
         output_dir=output_dir,
@@ -195,7 +195,9 @@ def tune_algorithm(
         trial_args = make_trial_args(cli_args, hparams, algorithm=algorithm)
 
         q_net, _, _, num_actions = mamba2_train_test.train(trial_args, device)
-        eval_data = mamba2_train_test.evaluate_policy(trial_args, q_net, num_actions, device)
+        # For quantile networks, evaluate using expected Q-values adapter
+        eval_q_net = mamba2_train_test.ExpectedQPolicy(q_net) if algorithm == "qr_dqn" else q_net
+        eval_data = mamba2_train_test.evaluate_policy(trial_args, eval_q_net, num_actions, device)
         summary = eval_data["summary"]
 
         avg_return = float(summary["avg_return"])
@@ -244,7 +246,8 @@ def tune_algorithm(
 
         print(f"\nRetraining best configuration and saving to: {output_dir}")
         q_net, target_net, obs_dim, num_actions = mamba2_train_test.train(best_args, device)
-        eval_data = mamba2_train_test.evaluate_policy(best_args, q_net, num_actions, device)
+        eval_q_net = mamba2_train_test.ExpectedQPolicy(q_net) if algorithm == "qr_dqn" else q_net
+        eval_data = mamba2_train_test.evaluate_policy(best_args, eval_q_net, num_actions, device)
         mamba2_train_test.save_artifacts(
             best_args,
             q_net,
@@ -261,6 +264,11 @@ def tune(cli_args: argparse.Namespace) -> None:
     if cli_args.algorithm:
         # Accept comma-separated list in a single string, or single name
         parts = [p.strip() for p in cli_args.algorithm.split(",") if p.strip()]
+        invalid = [p for p in parts if p not in SUPPORTED_ALGORITHMS]
+        if invalid:
+            raise SystemExit(
+                f"Invalid algorithm(s): {', '.join(invalid)}. Supported: {', '.join(SUPPORTED_ALGORITHMS)}"
+            )
         for algorithm in parts:
             tune_algorithm(
                 cli_args=cli_args,
@@ -270,7 +278,7 @@ def tune(cli_args: argparse.Namespace) -> None:
             )
         return
 
-    algorithms = ["dqn", "double_dqn", "dueling_double_dqn", "qr_dqn", "h_dqn"]
+    algorithms = SUPPORTED_ALGORITHMS
     print(f"No --algorithm provided. Running all: {', '.join(algorithms)}")
     for algorithm in algorithms:
         tune_algorithm(
