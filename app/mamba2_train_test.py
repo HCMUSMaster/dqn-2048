@@ -86,10 +86,10 @@ def dqn_sequence_update(batch, q_net, target_net, optimizer, gamma: float, grad_
 
 
 def quantile_huber_loss(pred_quantiles: torch.Tensor, target_quantiles: torch.Tensor, taus: torch.Tensor, kappa: float) -> torch.Tensor:
-    td_error = target_quantiles.unsqueeze(2) - pred_quantiles.unsqueeze(3)
+    td_error = target_quantiles.unsqueeze(1) - pred_quantiles.unsqueeze(2)
     abs_error = torch.abs(td_error)
     huber = torch.where(abs_error <= kappa, 0.5 * td_error.pow(2), kappa * (abs_error - 0.5 * kappa))
-    quantile_weight = torch.abs(taus.view(1, 1, -1, 1) - (td_error.detach() < 0).float())
+    quantile_weight = torch.abs(taus.view(1, -1, 1) - (td_error.detach() < 0).float())
     return (quantile_weight * huber).mean()
 
 
