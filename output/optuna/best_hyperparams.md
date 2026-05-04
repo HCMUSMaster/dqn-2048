@@ -156,3 +156,10 @@ Best trial for mamba dqn: #56
     mamba_conv_dim: 4
     mamba_expand: 2
 ```
+
+```
+Mamba double dqn
+Best Trial (number=4)
+2182.4933225324826
+Params = [buffer_size: 20000, batch_size: 64, seq_len: 4, gamma: 0.9560651463990533, lr: 0.0006598261030886547, target_sync_every: 100, learn_start: 5000, learn_every: 8, eps_end: 0.1972633080505522, eps_decay_steps: 50000, grad_clip: 16.20361877066044, hidden_dim: 256, mamba_layers: 3, mamba_state_dim: 128, mamba_conv_dim: 4, mamba_expand: 3]
+```
