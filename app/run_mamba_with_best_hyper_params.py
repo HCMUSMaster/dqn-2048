@@ -7,10 +7,9 @@ from pathlib import Path
 ALLOWED_MODELS = (
     "dqn",
     "double_dqn",
-    "mamba2_double_dqn",
-    "mamba2_dueling_double_dqn",
-    "mamba2_qr_dqn",
-    "mamba2_h_dqn",
+    "dueling_double_dqn",
+    "qr_dqn",
+    "h_dqn",
 )
 ALL_MODELS_TOKEN = "all"
 
@@ -29,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--models",
         type=str,
         default=",".join(ALLOWED_MODELS),
-        help="Comma-separated models to run: dqn,double_dqn,mamba2_double_dqn,mamba2_dueling_double_dqn,mamba2_qr_dqn,mamba2_h_dqn,all",
+        help="Comma-separated models to run: dqn,double_dqn,dueling_double_dqn,qr_dqn,h_dqn,all",
     )
     return parser
 
@@ -119,58 +118,6 @@ def build_mamba_double_dqn_command(num_episodes: int, output_dir: Path) -> list[
         "--num_episodes",
         str(num_episodes),
         "--buffer_size",
-        "20000",
-        "--batch_size",
-        "64",
-        "--seq_len",
-        "4",
-        "--gamma",
-        "0.9560651463990533",
-        "--lr",
-        "0.0006598261030886547",
-        "--target_sync_every",
-        "100",
-        "--learn_start",
-        "5000",
-        "--learn_every",
-        "8",
-        "--eps_start",
-        "1.0",
-        "--eps_end",
-        "0.1972633080505522",
-        "--eps_decay_steps",
-        "50000",
-        "--max_steps_per_episode",
-        "5000",
-        "--grad_clip",
-        "16.20361877066044",
-        "--hidden_dim",
-        "256",
-        "--mamba_layers",
-        "3",
-        "--mamba_state_dim",
-        "128",
-        "--mamba_conv_dim",
-        "4",
-        "--mamba_expand",
-        "3",
-        "--num_eval_seeds",
-        "100",
-        "--output_dir",
-        str(output_dir),
-    ]
-
-
-def build_mamba2_double_dqn_command(num_episodes: int, output_dir: Path) -> list[str]:
-    return [
-        sys.executable,
-        "-m",
-        "app.mamba2_train_test",
-        "--algorithm",
-        "double_dqn",
-        "--num_episodes",
-        str(num_episodes),
-        "--buffer_size",
         "200000",
         "--batch_size",
         "64",
@@ -213,6 +160,58 @@ def build_mamba2_double_dqn_command(num_episodes: int, output_dir: Path) -> list
     ]
 
 
+def build_dueling_double_dqn_command(num_episodes: int, output_dir: Path) -> list[str]:
+    return [
+        sys.executable,
+        "-m",
+        "app.mamba2_train_test",
+        "--algorithm",
+        "dueling_double_dqn",
+        "--num_episodes",
+        str(num_episodes),
+        "--buffer_size",
+        "20000",
+        "--batch_size",
+        "64",
+        "--seq_len",
+        "4",
+        "--gamma",
+        "0.9560651463990533",
+        "--lr",
+        "0.0006598261030886547",
+        "--target_sync_every",
+        "100",
+        "--learn_start",
+        "5000",
+        "--learn_every",
+        "8",
+        "--eps_start",
+        "1.0",
+        "--eps_end",
+        "0.1972633080505522",
+        "--eps_decay_steps",
+        "50000",
+        "--max_steps_per_episode",
+        "5000",
+        "--grad_clip",
+        "16.20361877066044",
+        "--hidden_dim",
+        "256",
+        "--mamba_layers",
+        "3",
+        "--mamba_state_dim",
+        "128",
+        "--mamba_conv_dim",
+        "4",
+        "--mamba_expand",
+        "3",
+        "--num_eval_seeds",
+        "100",
+        "--output_dir",
+        str(output_dir),
+    ]
+
+
 def run_placeholder(model_name: str) -> None:
     print(f"TODO: best hyperparameters for {model_name} are not filled in yet. Skipping.")
 
@@ -231,21 +230,18 @@ def main() -> None:
         run_command(build_mamba_dqn_command(args.num_episodes, base_out / "dqn"), cwd=root_dir)
 
     if "double_dqn" in selected_models:
-        print("Running best Mamba Double DQN hyperparameters...")
+        print("Running best Double DQN hyperparameters...")
         run_command(build_mamba_double_dqn_command(args.num_episodes, base_out / "double-dqn"), cwd=root_dir)
 
-    if "mamba2_double_dqn" in selected_models:
-        print("Running best Mamba2 Double DQN hyperparameters...")
-        run_command(build_mamba2_double_dqn_command(args.num_episodes, base_out / "mamba2-double-dqn"), cwd=root_dir)
+    if "dueling_double_dqn" in selected_models:
+        print("Running best Dueling Double DQN hyperparameters...")
+        run_command(build_dueling_double_dqn_command(args.num_episodes, base_out / "dueling-double-dqn"), cwd=root_dir)
 
-    if "mamba2_dueling_double_dqn" in selected_models:
-        run_placeholder("mamba2_dueling_double_dqn")
+    if "qr_dqn" in selected_models:
+        run_placeholder("qr_dqn")
 
-    if "mamba2_qr_dqn" in selected_models:
-        run_placeholder("mamba2_qr_dqn")
-
-    if "mamba2_h_dqn" in selected_models:
-        run_placeholder("mamba2_h_dqn")
+    if "h_dqn" in selected_models:
+        run_placeholder("h_dqn")
 
     print(f"Selected models: {','.join(selected_models)}")
     print(f"Completed available runs. Outputs are in: {base_out}")
