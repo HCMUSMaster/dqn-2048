@@ -57,6 +57,32 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional output directory for checkpoint and eval files.",
     )
+
+    # H-DQN specific options (forwarded to app.h_dqn.train when --algorithm h_dqn)
+    parser.add_argument("--goal_tiles", type=str, default="32,64,128,256,512,1024,2048", help="Comma-separated intrinsic goal tiles for the meta-controller.")
+    parser.add_argument("--option_duration", type=int, default=8, help="Maximum primitive steps before forcing a new meta-goal.")
+    parser.add_argument("--intrinsic_success_reward", type=float, default=1.0, help="Intrinsic reward when the selected goal is achieved.")
+    parser.add_argument("--intrinsic_step_penalty", type=float, default=-0.01, help="Intrinsic step penalty while pursuing a goal.")
+
+    parser.add_argument("--ctrl_buffer_size", type=int, default=50_000, help="Controller replay capacity.")
+    parser.add_argument("--ctrl_batch_size", type=int, default=128, help="Controller mini-batch size.")
+    parser.add_argument("--ctrl_gamma", type=float, default=0.99, help="Controller discount factor.")
+    parser.add_argument("--ctrl_lr", type=float, default=1e-3, help="Controller learning rate.")
+    parser.add_argument("--ctrl_target_sync_every", type=int, default=250, help="Controller target sync interval in env steps.")
+    parser.add_argument("--ctrl_learn_start", type=int, default=1_000, help="Controller replay warm-up size.")
+    parser.add_argument("--ctrl_learn_every", type=int, default=4, help="Controller optimization interval in env steps.")
+
+    parser.add_argument("--meta_buffer_size", type=int, default=20_000, help="Meta replay capacity.")
+    parser.add_argument("--meta_batch_size", type=int, default=64, help="Meta mini-batch size.")
+    parser.add_argument("--meta_gamma", type=float, default=0.99, help="Meta-controller discount factor.")
+    parser.add_argument("--meta_lr", type=float, default=1e-3, help="Meta-controller learning rate.")
+    parser.add_argument("--meta_target_sync_every", type=int, default=50, help="Meta target sync interval in completed options.")
+    parser.add_argument("--meta_learn_start", type=int, default=500, help="Meta replay warm-up size.")
+    parser.add_argument("--meta_learn_every", type=int, default=2, help="Meta optimization interval in completed options.")
+
+    parser.add_argument("--meta_eps_start", type=float, default=1.0, help="Initial epsilon for meta-goal exploration.")
+    parser.add_argument("--meta_eps_end", type=float, default=0.05, help="Final epsilon for meta-goal exploration.")
+    parser.add_argument("--meta_eps_decay_steps", type=int, default=2_000, help="Meta epsilon decay horizon in completed options.")
     return parser
 
 
