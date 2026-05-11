@@ -115,13 +115,13 @@
   "state_storage": "pre-action and post-action observations in eval_rollout.npz",
   "episode_boundaries": "episode_ids and step_ids define episode grouping",
   "summary": {
-    "avg_return": 2531.24,
-    "std_return": 1409.0116473613696,
-    "min_return": 456.0,
-    "max_return": 7380.0,
-    "avg_length": 221.61,
-    "avg_max_tile": 204.48,
-    "avg_illegal_action_attempts": 67.59,
-    "total_illegal_action_attempts": 6759
+    "avg_return": 2799.12,
+    "std_return": 1318.9454672578393,
+    "min_return": 296.0,
+    "max_return": 6424.0,
+    "avg_length": 240.15,
+    "avg_max_tile": 222.4,
+    "avg_illegal_action_attempts": 71.79,
+    "total_illegal_action_attempts": 7179
   }
 }
