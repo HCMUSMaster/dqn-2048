@@ -1,0 +1,74 @@
+[
+  {
+    "num_episodes": 300,
+    "output_dir": "output/survey_mamba/dqn/episodes_300",
+    "summary": {
+      "avg_return": 2246.32,
+      "std_return": 1177.0138731552827,
+      "avg_length": 205.5,
+      "avg_max_tile": 172.48,
+      "avg_illegal_action_attempts": 62.74,
+      "total_illegal_action_attempts": 6274
+    }
+  },
+  {
+    "num_episodes": 500,
+    "output_dir": "output/survey_mamba/dqn/episodes_500",
+    "summary": {
+      "avg_return": 2113.64,
+      "std_return": 1162.404555393689,
+      "avg_length": 194.84,
+      "avg_max_tile": 170.56,
+      "avg_illegal_action_attempts": 58.05,
+      "total_illegal_action_attempts": 5805
+    }
+  },
+  {
+    "num_episodes": 1000,
+    "output_dir": "output/survey_mamba/dqn/episodes_1000",
+    "summary": {
+      "avg_return": 1790.92,
+      "std_return": 1108.044021508171,
+      "avg_length": 171.89,
+      "avg_max_tile": 149.44,
+      "avg_illegal_action_attempts": 50.02,
+      "total_illegal_action_attempts": 5002
+    }
+  },
+  {
+    "num_episodes": 2000,
+    "output_dir": "output/survey_mamba/dqn/episodes_2000",
+    "summary": {
+      "avg_return": 2104.56,
+      "std_return": 1281.2191718827814,
+      "avg_length": 193.0,
+      "avg_max_tile": 167.68,
+      "avg_illegal_action_attempts": 61.06,
+      "total_illegal_action_attempts": 6106
+    }
+  },
+  {
+    "num_episodes": 3000,
+    "output_dir": "output/survey_mamba/dqn/episodes_3000",
+    "summary": {
+      "avg_return": 1360.64,
+      "std_return": 1047.700830580944,
+      "avg_length": 141.26,
+      "avg_max_tile": 108.16,
+      "avg_illegal_action_attempts": 41.22,
+      "total_illegal_action_attempts": 4122
+    }
+  },
+  {
+    "num_episodes": 5000,
+    "output_dir": "output/survey_mamba/dqn/episodes_5000",
+    "summary": {
+      "avg_return": 1137.96,
+      "std_return": 936.7092176337328,
+      "avg_length": 124.95,
+      "avg_max_tile": 89.6,
+      "avg_illegal_action_attempts": 36.6,
+      "total_illegal_action_attempts": 3660
+    }
+  }
+]

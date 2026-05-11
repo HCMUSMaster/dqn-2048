@@ -1,0 +1,74 @@
+[
+  {
+    "num_episodes": 300,
+    "output_dir": "output/survey_mamba/double-dqn/episodes_300",
+    "summary": {
+      "avg_return": 2258.24,
+      "std_return": 1245.539153298683,
+      "avg_length": 204.45,
+      "avg_max_tile": 180.48,
+      "avg_illegal_action_attempts": 49.49,
+      "total_illegal_action_attempts": 4949
+    }
+  },
+  {
+    "num_episodes": 500,
+    "output_dir": "output/survey_mamba/double-dqn/episodes_500",
+    "summary": {
+      "avg_return": 1765.52,
+      "std_return": 1084.400041313168,
+      "avg_length": 171.32,
+      "avg_max_tile": 135.04,
+      "avg_illegal_action_attempts": 47.73,
+      "total_illegal_action_attempts": 4773
+    }
+  },
+  {
+    "num_episodes": 1000,
+    "output_dir": "output/survey_mamba/double-dqn/episodes_1000",
+    "summary": {
+      "avg_return": 1790.76,
+      "std_return": 1047.1345579246251,
+      "avg_length": 170.05,
+      "avg_max_tile": 153.6,
+      "avg_illegal_action_attempts": 41.8,
+      "total_illegal_action_attempts": 4180
+    }
+  },
+  {
+    "num_episodes": 2000,
+    "output_dir": "output/survey_mamba/double-dqn/episodes_2000",
+    "summary": {
+      "avg_return": 1539.84,
+      "std_return": 1035.7670657054123,
+      "avg_length": 151.26,
+      "avg_max_tile": 135.04,
+      "avg_illegal_action_attempts": 38.96,
+      "total_illegal_action_attempts": 3896
+    }
+  },
+  {
+    "num_episodes": 3000,
+    "output_dir": "output/survey_mamba/double-dqn/episodes_3000",
+    "summary": {
+      "avg_return": 2364.64,
+      "std_return": 1418.0632110029512,
+      "avg_length": 208.85,
+      "avg_max_tile": 195.84,
+      "avg_illegal_action_attempts": 51.86,
+      "total_illegal_action_attempts": 5186
+    }
+  },
+  {
+    "num_episodes": 5000,
+    "output_dir": "output/survey_mamba/double-dqn/episodes_5000",
+    "summary": {
+      "avg_return": 3154.0,
+      "std_return": 1664.4953589601864,
+      "avg_length": 258.7,
+      "avg_max_tile": 260.8,
+      "avg_illegal_action_attempts": 66.93,
+      "total_illegal_action_attempts": 6693
+    }
+  }
+]

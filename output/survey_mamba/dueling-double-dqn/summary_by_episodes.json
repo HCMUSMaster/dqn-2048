@@ -1,0 +1,74 @@
+[
+  {
+    "num_episodes": 300,
+    "output_dir": "output/survey_mamba/dueling-double-dqn/episodes_300",
+    "summary": {
+      "avg_return": 790.52,
+      "std_return": 574.443913363176,
+      "avg_length": 96.47,
+      "avg_max_tile": 71.36,
+      "avg_illegal_action_attempts": 27.76,
+      "total_illegal_action_attempts": 2776
+    }
+  },
+  {
+    "num_episodes": 500,
+    "output_dir": "output/survey_mamba/dueling-double-dqn/episodes_500",
+    "summary": {
+      "avg_return": 680.6,
+      "std_return": 371.7889186083953,
+      "avg_length": 88.49,
+      "avg_max_tile": 64.8,
+      "avg_illegal_action_attempts": 23.09,
+      "total_illegal_action_attempts": 2309
+    }
+  },
+  {
+    "num_episodes": 1000,
+    "output_dir": "output/survey_mamba/dueling-double-dqn/episodes_1000",
+    "summary": {
+      "avg_return": 884.52,
+      "std_return": 609.7788858266576,
+      "avg_length": 103.57,
+      "avg_max_tile": 81.76,
+      "avg_illegal_action_attempts": 27.3,
+      "total_illegal_action_attempts": 2730
+    }
+  },
+  {
+    "num_episodes": 2000,
+    "output_dir": "output/survey_mamba/dueling-double-dqn/episodes_2000",
+    "summary": {
+      "avg_return": 776.8,
+      "std_return": 484.6227398709227,
+      "avg_length": 96.57,
+      "avg_max_tile": 69.2,
+      "avg_illegal_action_attempts": 23.81,
+      "total_illegal_action_attempts": 2381
+    }
+  },
+  {
+    "num_episodes": 3000,
+    "output_dir": "output/survey_mamba/dueling-double-dqn/episodes_3000",
+    "summary": {
+      "avg_return": 1911.76,
+      "std_return": 771.0460053719233,
+      "avg_length": 178.65,
+      "avg_max_tile": 169.6,
+      "avg_illegal_action_attempts": 44.6,
+      "total_illegal_action_attempts": 4460
+    }
+  },
+  {
+    "num_episodes": 5000,
+    "output_dir": "output/survey_mamba/dueling-double-dqn/episodes_5000",
+    "summary": {
+      "avg_return": 916.68,
+      "std_return": 614.6882279660153,
+      "avg_length": 106.61,
+      "avg_max_tile": 84.96,
+      "avg_illegal_action_attempts": 30.01,
+      "total_illegal_action_attempts": 3001
+    }
+  }
+]
