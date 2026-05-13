@@ -1,0 +1,26 @@
+[
+  {
+    "num_episodes": 3000,
+    "output_dir": "output/survey_mamba/qr-dqn/episodes_3000",
+    "summary": {
+      "avg_return": 2906.2,
+      "std_return": 1609.7597708975086,
+      "avg_length": 243.48,
+      "avg_max_tile": 235.84,
+      "avg_illegal_action_attempts": 65.43,
+      "total_illegal_action_attempts": 6543
+    }
+  },
+  {
+    "num_episodes": 5000,
+    "output_dir": "output/survey_mamba/qr-dqn/episodes_5000",
+    "summary": {
+      "avg_return": 2855.16,
+      "std_return": 1773.8493550468145,
+      "avg_length": 236.97,
+      "avg_max_tile": 239.04,
+      "avg_illegal_action_attempts": 62.97,
+      "total_illegal_action_attempts": 6297
+    }
+  }
+]

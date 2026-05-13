@@ -1,75 +1,27 @@
 {
-  "h_dqn": [
-    {
-      "num_episodes": 300,
-      "output_dir": "output/survey_mamba/h-dqn/episodes_300",
-      "summary": {
-        "avg_return": 1051.48,
-        "std_return": 617.0857068511634,
-        "avg_length": 116.32,
-        "avg_max_tile": 97.76,
-        "avg_illegal_action_attempts": 26.97,
-        "total_illegal_action_attempts": 2697
-      }
-    },
-    {
-      "num_episodes": 500,
-      "output_dir": "output/survey_mamba/h-dqn/episodes_500",
-      "summary": {
-        "avg_return": 1566.32,
-        "std_return": 1094.6811305581184,
-        "avg_length": 154.51,
-        "avg_max_tile": 130.56,
-        "avg_illegal_action_attempts": 40.33,
-        "total_illegal_action_attempts": 4033
-      }
-    },
-    {
-      "num_episodes": 1000,
-      "output_dir": "output/survey_mamba/h-dqn/episodes_1000",
-      "summary": {
-        "avg_return": 1317.16,
-        "std_return": 765.7078910393964,
-        "avg_length": 137.57,
-        "avg_max_tile": 116.16,
-        "avg_illegal_action_attempts": 32.15,
-        "total_illegal_action_attempts": 3215
-      }
-    },
-    {
-      "num_episodes": 2000,
-      "output_dir": "output/survey_mamba/h-dqn/episodes_2000",
-      "summary": {
-        "avg_return": 1238.0,
-        "std_return": 578.2864342175078,
-        "avg_length": 129.91,
-        "avg_max_tile": 119.04,
-        "avg_illegal_action_attempts": 28.74,
-        "total_illegal_action_attempts": 2874
-      }
-    },
+  "qr_dqn": [
     {
       "num_episodes": 3000,
-      "output_dir": "output/survey_mamba/h-dqn/episodes_3000",
+      "output_dir": "output/survey_mamba/qr-dqn/episodes_3000",
       "summary": {
-        "avg_return": 1082.2,
-        "std_return": 542.2357789744236,
-        "avg_length": 118.89,
-        "avg_max_tile": 101.76,
-        "avg_illegal_action_attempts": 28.61,
-        "total_illegal_action_attempts": 2861
+        "avg_return": 2906.2,
+        "std_return": 1609.7597708975086,
+        "avg_length": 243.48,
+        "avg_max_tile": 235.84,
+        "avg_illegal_action_attempts": 65.43,
+        "total_illegal_action_attempts": 6543
       }
     },
     {
       "num_episodes": 5000,
-      "output_dir": "output/survey_mamba/h-dqn/episodes_5000",
+      "output_dir": "output/survey_mamba/qr-dqn/episodes_5000",
       "summary": {
-        "avg_return": 1017.68,
-        "std_return": 576.6868626906634,
-        "avg_length": 114.1,
-        "avg_max_tile": 95.68,
-        "avg_illegal_action_attempts": 27.44,
-        "total_illegal_action_attempts": 2744
+        "avg_return": 2855.16,
+        "std_return": 1773.8493550468145,
+        "avg_length": 236.97,
+        "avg_max_tile": 239.04,
+        "avg_illegal_action_attempts": 62.97,
+        "total_illegal_action_attempts": 6297
       }
     }
   ]
