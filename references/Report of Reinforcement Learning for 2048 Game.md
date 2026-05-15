@@ -182,11 +182,11 @@ Below plots summarize the importance of each hyperparameter for the different mo
 
 | DQN | Double DQN |
 | :---: | :---: |
-| ![](.assets/importance_dqn.png) | ![](.assets/importance_double_dqn.png) |
+| ![](../.assets/importance_dqn.png) | ![](../.assets/importance_double_dqn.png) |
 | **Dueling Double DQN** | **QR-DQN** |
-| ![](.assets/importance_dueling_double_dqn.png) | ![](.assets/importance_qr_dqn.png) |
+| ![](../.assets/importance_dueling_double_dqn.png) | ![](../.assets/importance_qr_dqn.png) |
 | **H-DQN** | |
-| ![](.assets/importance_h_dqn.png) | |
+| ![](../.assets/importance_h_dqn.png) | |
 
 - **Standard Baseline (DQN):** The standard DQN configuration exhibits massive sensitivity to the Learning Rate (`lr`: 0.569) and Experience Replay size (`buffer_size`: 0.219). Without the decoupling mechanisms introduced in later architectures, standard DQN is perilously susceptible to overestimation bias and catastrophic divergence (Mnih et al., 2015). A precisely tuned learning rate limits severe gradient oscillation, whilst a large replay buffer ensures consecutive correlated experiences do not irreparably drift the Q-values.
 - **Overestimation Correction (Double DQN):** Upon mitigating the target evaluation maximization bias via Double Q-Learning (Van Hasselt et al., 2016), the algorithm stabilizes the fundamental gradient step. Consequently, the greatest influence shifts away from pure step-size constraints and moves toward temporal reward valuations (`gamma`: 0.149), replay diversity (`buffer_size`: 0.138), and exploration limits (`eps_end`: 0.121). 
@@ -201,11 +201,11 @@ Below are visual summaries of model performances relative to the number of train
 
 | Average Return | Standard Deviation of Return |
 | :---: | :---: |
-| ![](.assets/avg_return.png) | ![](.assets/std_return.png) |
+| ![](../.assets/avg_return.png) | ![](../.assets/std_return.png) |
 | **Average Game Length** | **Average Max Tile** |
-| ![](.assets/avg_length.png) | ![](.assets/avg_max_tile.png) |
+| ![](../.assets/avg_length.png) | ![](../.assets/avg_max_tile.png) |
 | **Average Illegal Action Attempts** | **Total Illegal Action Attempts** |
-| ![](.assets/avg_illegal_action_attempts.png) | ![](.assets/total_illegal_action_attempts.png) |
+| ![](../.assets/avg_illegal_action_attempts.png) | ![](../.assets/total_illegal_action_attempts.png) |
 
 ### Analysis of Training Progression and Stability
 
